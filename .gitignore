@@ -2,3 +2,5 @@
 *.pth
 *.png
 *.jpg
+*.swp
+pytorch_0.4/logs/
