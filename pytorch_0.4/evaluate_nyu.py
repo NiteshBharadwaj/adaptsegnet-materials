@@ -95,6 +95,13 @@ def main():
     nyu_nyu_map = lambda x: nyu_nyu_dict.get(x+1,x)
     nyu_nyu_map = np.vectorize(nyu_nyu_map)
     args.nyu_nyu_map = nyu_nyu_map
+    nyu_13_dict = {0:11, 1: 4, 2: 5, 3: 0, 4: 3, 5: 8, 6: 9, 7:11, 8:12, 9: 5,
+            10: 7, 11: 5, 12: 12, 13: 9, 14: 5, 15: 12, 16: 5, 17: 6, 18:6, 19: 4,
+            20: 6, 21:2, 22: 1, 23: 5, 24: 10, 25: 6, 26: 6, 27: 6, 28: 6, 29:6,
+            30:6, 31:5, 32: 6, 33: 6, 34:6, 35:6, 36:6, 37:6, 38: 5, 39: 6}
+    nyu_13_map = lambda x: nyu_13_dict.get(x,x)
+    nyu_13_map = np.vectorize(nyu_13_map)
+    args.nyu_13_map = nyu_13_map
     if args.model == 'DeeplabMulti':
         model = DeeplabMulti(num_classes=args.num_classes)
     elif args.model == 'Oracle':
@@ -140,7 +147,7 @@ def main():
     val_dst = NYU(root=args.data_dir, opt=args,
 			 split='val', transform=val_transform,
 			 imWidth = args.width, imHeight = args.height, phase="TEST",
-			 randomize = False)
+			 randomize = False, nyu_13_map=args.nyu_13_map)
     print("Dset Length {}".format(len(val_dst)))
     testloader = data.DataLoader(val_dst,
                                     batch_size=1, shuffle=False, pin_memory=True)
@@ -165,8 +172,8 @@ def main():
         preds = output[None,:,:]
         #input_ = image.cpu().numpy()[0].transpose(1,2,0) + np.array(IMG_MEAN)
         metrics.update(targets, preds)
-        targets = args.nyu_nyu_map(targets)
-        preds = args.nyu_nyu_map(preds)
+        #targets = args.nyu_nyu_map(targets)
+        #preds = args.nyu_nyu_map(preds)
         metrics_remap.update(targets,preds)
         #input_ = Image.fromarray(input_.astype(np.uint8))
         #output_col = colorize_mask(output)
