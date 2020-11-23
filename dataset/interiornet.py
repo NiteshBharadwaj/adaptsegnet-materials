@@ -57,7 +57,8 @@ class InteriorNetSegmentation(data.Dataset):
                  isLight=False, isAllLight=False,
                  envHeight=8, envWidth=16, envRow=120, envCol=160,
                  SGNum=12, labelLevel=1,
-                 remap_labels = None):
+                 remap_labels = None,
+                 nyu_13_map = None):
         self.root = root
         self.options = opt
         self.split = split
@@ -104,7 +105,7 @@ class InteriorNetSegmentation(data.Dataset):
                            ((t & 0x0000ff00) << 8) +
                            ((t & 0x000000ff) << 24))
         random.shuffle(self.perm)
-        
+        self.nyu_13_map = nyu_13_map
         # Nitesh
         # We want to work on rgb images here
         self.if_hdr = False
@@ -166,6 +167,8 @@ class InteriorNetSegmentation(data.Dataset):
         #print(image.shape)
         if self.remap_labels is not None:
             mask_labels = self.remap_labels(mask_labels)
+        mask_labels = self.nyu_13_map(mask_labels)
+        #print(np.unique(mask_labels))
         target = mask_labels
         if self.transform is not None:
             image, target = self.transform(image, target)

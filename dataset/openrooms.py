@@ -57,7 +57,8 @@ class OpenRoomsSegmentation(data.Dataset):
                  isLight=False, isAllLight=False,
                  envHeight=8, envWidth=16, envRow=120, envCol=160,
                  SGNum=12, labelLevel=1,
-                 remap_labels = None):
+                 remap_labels = None,
+                 nyu_13_map = None):
         self.root = root
         self.options = opt
         self.split = split
@@ -114,6 +115,7 @@ class OpenRoomsSegmentation(data.Dataset):
         light_to_window_dict = {0:31}
         light_to_window = lambda x: light_to_window_dict.get(x,x)
         self.light_to_window = np.vectorize(light_to_window)
+        self.nyu_13_map = nyu_13_map
 
     def __getitem__(self, index):
         """
@@ -160,6 +162,7 @@ class OpenRoomsSegmentation(data.Dataset):
         mask_labels = self.light_to_window(mask_labels)
         if self.remap_labels is not None:
             mask_labels = self.remap_labels(mask_labels)
+        mask_labels = self.nyu_13_map(mask_labels)
         target = mask_labels
         if self.transform is not None:
             image, target = self.transform(image, target)

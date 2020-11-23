@@ -41,7 +41,7 @@ DATA_LIST_PATH_TARGET = './'
 INPUT_SIZE_TARGET = '320,240'
 LEARNING_RATE = 2.5e-4
 MOMENTUM = 0.9
-NUM_CLASSES = 40
+NUM_CLASSES = 13
 NUM_STEPS = 250000
 NUM_STEPS_STOP = 250000  # early stopping
 POWER = 0.9
@@ -145,6 +145,8 @@ def get_arguments():
                         help="choose the GAN objective.")
     parser.add_argument("--mode", type=str, default="uda",
                         help="uda/sda/baseline/baseline_tar")
+    parser.add_argument("--no-adapt", action="store_true",
+                        help="Whether to randomly scale the inputs during the training.")
     return parser.parse_args()
 
 
@@ -179,6 +181,13 @@ def main():
     or_nyu_map = lambda x: or_nyu_dict.get(x,x) - 1
     or_nyu_map = np.vectorize(or_nyu_map)
 
+    nyu_13_dict = {0:11, 1: 4, 2: 5, 3: 0, 4: 3, 5: 8, 6: 9, 7:11, 8:12, 9: 5,
+            10: 7, 11: 5, 12: 12, 13: 9, 14: 5, 15: 12, 16: 5, 17: 6, 18:6, 19: 4,
+            20: 6, 21:2, 22: 1, 23: 5, 24: 10, 25: 6, 26: 6, 27: 6, 28: 6, 29:6,
+            30:6, 31:5, 32: 6, 33: 6, 34:6, 35:6, 36:6, 37:6, 38: 5, 39: 6}
+    nyu_13_map = lambda x: nyu_13_dict.get(x,x)
+    nyu_13_map = np.vectorize(nyu_13_map)
+
     device = torch.device("cuda" if not args.cpu else "cpu")
 
     w, h = map(int, args.input_size.split(','))
@@ -189,6 +198,7 @@ def main():
 
     cudnn.enabled = True
     args.or_nyu_map = or_nyu_map
+    args.nyu_13_map = nyu_13_map
     # Create network
     if args.model == 'DeepLab':
         model = DeeplabMulti(num_classes=args.num_classes)
@@ -204,7 +214,7 @@ def main():
             # Scale.layer5.conv2d_list.3.weight
             i_parts = i.split('.')
             # print i_parts
-            if not args.num_classes == 40 or not i_parts[1] == 'layer5':
+            if not args.num_classes == 13 or not i_parts[1] == 'layer5':
                 new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
                 # print i_parts
         model.load_state_dict(new_params)
@@ -265,20 +275,20 @@ def main():
     if args.mode!="baseline_tar":
         src_train_dst = InteriorNetSegmentation(root=args.data_dir, opt=args,
                                    split='train', transform=train_transform,
-                                   imWidth = args.width, imHeight = args.height)
+                                   imWidth = args.width, imHeight = args.height,  nyu_13_map = args.nyu_13_map)
     else:
         src_train_dst = NYU_Labelled(root=args.data_dir_target, opt=args,
                          split='train', transform=train_transform,
                          imWidth = args.width, imHeight = args.height, phase="TRAIN",
-                         randomize = True)
+                         randomize = True, nyu_13_map=args.nyu_13_map)
     tar_train_dst = NYU(root=args.data_dir_target, opt=args,
 			 split='train', transform=train_transform,
 			 imWidth = args.width, imHeight = args.height, phase="TRAIN",
-			 randomize = True, mode=args.mode)
+			 randomize = True, mode=args.mode, nyu_13_map=args.nyu_13_map)
     tar_val_dst = NYU(root=args.data_dir, opt=args,
 			 split='val', transform=val_transform,
 			 imWidth = args.width, imHeight = args.height, phase="TRAIN",
-			 randomize = False)
+			 randomize = False, nyu_13_map=args.nyu_13_map)
     trainloader = data.DataLoader(src_train_dst,
         batch_size=args.batch_size, shuffle=True, num_workers=args.num_workers, pin_memory=True)
 
@@ -337,7 +347,7 @@ def main():
 
         optimizer.zero_grad()
         adjust_learning_rate(optimizer, i_iter)
-        if args.mode!="baseline" and args.mode!="baseline_tar":
+        if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
             optimizer_D1.zero_grad()
             optimizer_D2.zero_grad()
             adjust_learning_rate_D(optimizer_D1, i_iter)
@@ -351,7 +361,7 @@ def main():
         for sub_i in range(args.iter_size):
 
             # train G
-            if args.mode!="baseline" and args.mode!="baseline_tar":
+            if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
                 # don't accumulate grads in D
                 for param in model_D1.parameters():
                     param.requires_grad = False
@@ -368,6 +378,7 @@ def main():
             images, labels, _ = batch
             sample_src = images.clone()
             sample_gt_src = labels.clone()
+            
             images = images.to(device)
             labels = labels.long().to(device)
 
@@ -416,7 +427,7 @@ def main():
                 loss_tar_labelled = torch.zeros(1, requires_grad=True).float().to(device)
             # proper normalization
             sample_pred_tar = pred_target2.detach().cpu()
-            if args.mode!="baseline" and args.mode!="baseline_tar":
+            if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
                 D_out1 = model_D1(F.softmax(pred_target1))
                 D_out2 = model_D2(F.softmax(pred_target2))
 
@@ -478,9 +489,10 @@ def main():
 
                 loss_D_value1 += loss_D1.item()
                 loss_D_value2 += loss_D2.item()
-
+            elif args.no_adapt and args.mode=="sda":
+                loss_tar_labelled.backward()
         optimizer.step()
-        if args.mode!="baseline" and args.mode!="baseline_tar":
+        if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
             optimizer_D1.step()
             optimizer_D2.step()
         if args.tensorboard:
@@ -527,7 +539,7 @@ def main():
         if i_iter >= args.num_steps_stop - 1:
             print('save model ...')
             torch.save(model.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(args.num_steps_stop) + '.pth'))
-            if args.mode!="baseline" and args.mode!="baseline_tar":
+            if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
                 torch.save(model_D1.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(args.num_steps_stop) + '_D1.pth'))
                 torch.save(model_D2.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(args.num_steps_stop) + '_D2.pth'))
             break
@@ -535,7 +547,7 @@ def main():
         if i_iter % args.save_pred_every == 0 and i_iter != 0:
             print('taking snapshot ...')
             torch.save(model.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(i_iter) + '.pth'))
-            if args.mode!="baseline" and args.mode!="baseline_tar":
+            if args.mode!="baseline" and args.mode!="baseline_tar" and not args.no_adapt:
                 torch.save(model_D1.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(i_iter) + '_D1.pth'))
                 torch.save(model_D2.state_dict(), osp.join(args.snapshot_dir, 'INET_' + str(i_iter) + '_D2.pth'))
 

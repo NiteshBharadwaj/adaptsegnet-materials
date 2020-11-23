@@ -59,7 +59,7 @@ class NYU(data.Dataset):
     cmap = voc_cmap()
     def __init__(self, root, opt, split,  transform=None, randomize=True, loadNeighborImage=False,
                  imHeight=240, imWidth=320,
-                 phase='TRAIN', rseed=None, mode="uda"):
+                 phase='TRAIN', rseed=None, mode="uda", nyu_13_map = None):
         self.options = opt
         self.split = split
         self.random = randomize
@@ -111,6 +111,7 @@ class NYU(data.Dataset):
         self.count = len(self.imList)
         self.perm = list(range(self.count))
         self.count_raw = len(self.imListRaw)
+        self.nyu_13_map = nyu_13_map
         self.perm_raw = list(range(self.count_raw))
         if mode!="sda":
            print("Loaded NYU {} set with {} images with mode {}".format(split,self.count, self.mode))
@@ -178,6 +179,8 @@ class NYU(data.Dataset):
         mask_labels = np.array(mask)
         if mask_labels.ndim>2:
              mask_labels = np.zeros((mask.shape[0], mask.shape[1]),dtype=np.uint8)
+        else: 
+             mask_labels = self.nyu_13_map(mask_labels)
         #mask_labels = self.trans40(mask_labels)
         target = mask_labels
         #print(np.unique(mask))

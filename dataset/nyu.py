@@ -50,7 +50,7 @@ class NYU(data.Dataset):
     cmap = voc_cmap()
     def __init__(self, root, opt, split,  transform=None, randomize=True, loadNeighborImage=False,
                  imHeight=240, imWidth=320,
-                 phase='TRAIN', rseed=None):
+                 phase='TRAIN', rseed=None, nyu_13_map = None):
         self.options = opt
         self.split = split
         self.random = randomize
@@ -106,6 +106,7 @@ class NYU(data.Dataset):
         # We want to work on rgb images here
         self.if_hdr = False
         self.invalid_index = 255
+        self.nyu_13_map = nyu_13_map
     
     def __getitem__(self, index):
         """
@@ -136,6 +137,7 @@ class NYU(data.Dataset):
         # Random scale the image
         mask = self.loadImageIo(self.maskList[self.perm[index]])
         mask_labels = np.array(mask)
+        mask_labels = self.nyu_13_map(mask_labels)
         #mask_labels = self.trans40(mask_labels)
         target = mask_labels
         #print(np.unique(mask))
