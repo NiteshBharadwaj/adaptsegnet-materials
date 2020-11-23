@@ -41,7 +41,7 @@ DATA_LIST_PATH_TARGET = './'
 INPUT_SIZE_TARGET = '320,240'
 LEARNING_RATE = 2.5e-4
 MOMENTUM = 0.9
-NUM_CLASSES = 13
+NUM_CLASSES = 17
 NUM_STEPS = 250000
 NUM_STEPS_STOP = 250000  # early stopping
 POWER = 0.9
@@ -176,15 +176,14 @@ def main():
     or_nyu_dict = {0:255, 1: 16, 2:40, 3: 39, 4:7, 5:14, 6: 39, 7: 12, 8: 38, 9: 40, 
             10: 10, 11:6, 12: 40, 13: 39, 14: 39, 15: 40, 16: 18, 17: 40, 18: 4, 19: 40,
             20: 40, 21: 5, 22: 40, 23: 40, 24: 30, 25: 36, 26: 38, 27: 40, 28: 3, 29: 40,
-            30: 40, 31: 9, 32: 38, 33: 40, 34: 40, 35: 40, 36: 34, 37: 37, 38:40, 39:40,
+            30: 40, 31: 9, 32: 35, 33: 40, 34: 40, 35: 40, 36: 34, 37: 37, 38:40, 39:40,
             40: 39, 41: 8, 42: 3, 43: 1, 44: 2, 45: 22}
     or_nyu_map = lambda x: or_nyu_dict.get(x,x) - 1
     or_nyu_map = np.vectorize(or_nyu_map)
 
-    nyu_13_dict = {0:11, 1: 4, 2: 5, 3: 0, 4: 3, 5: 8, 6: 9, 7:11, 8:12, 9: 5,
-            10: 7, 11: 5, 12: 12, 13: 9, 14: 5, 15: 12, 16: 5, 17: 6, 18:6, 19: 4,
-            20: 6, 21:2, 22: 1, 23: 5, 24: 10, 25: 6, 26: 6, 27: 6, 28: 6, 29:6,
-            30:6, 31:5, 32: 6, 33: 6, 34:6, 35:6, 36:6, 37:6, 38: 5, 39: 6}
+    nyu_13_dict = {10:255, 11:10, 12:255, 13:11, 14:255, 15:12, 16:255, 17:13, 18:255, 19:255, 20:255, 21:14,22:255, 23:255,
+             24:255, 25:255, 26:255, 27:255, 28:255, 29:255, 30:255, 31:255, 32:255, 33:255,34:15, 35:16,
+             36:255, 37:255, 38:255, 39:255}
     nyu_13_map = lambda x: nyu_13_dict.get(x,x)
     nyu_13_map = np.vectorize(nyu_13_map)
 
@@ -214,7 +213,7 @@ def main():
             # Scale.layer5.conv2d_list.3.weight
             i_parts = i.split('.')
             # print i_parts
-            if not args.num_classes == 13 or not i_parts[1] == 'layer5':
+            if not args.num_classes == 17 or not i_parts[1] == 'layer5':
                 new_params['.'.join(i_parts[1:])] = saved_state_dict[i]
                 # print i_parts
         model.load_state_dict(new_params)
